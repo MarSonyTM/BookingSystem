@@ -16,7 +16,7 @@ export default function BookingSystem() {
   const [error, setError] = useState<string | null>(null);
   
   const { user } = useAuth();
-  const { checkWeeklyLimit, getUserWeeklyBookings } = useBookingLimits();
+  const { checkDailyLimit, checkWeeklyLimit, getUserWeeklyBookings } = useBookingLimits();
 
   const timeSlots = generateTimeSlots();
   const weekDays = generateWeekDays();
@@ -55,6 +55,20 @@ export default function BookingSystem() {
   const handleBook = () => {
     if (!selectedSlot || !user) return;
 
+    // Check daily limit
+    if (!checkDailyLimit(bookings, selectedSlot.date)) {
+      setError('You can only book one slot per day');
+      setSelectedSlot(null);
+      return;
+    }
+
+    // Check weekly limit
+    if (!checkWeeklyLimit(bookings, selectedSlot.date)) {
+      setError('You can only book two slots per week');
+      setSelectedSlot(null);
+      return;
+    }
+
     const [hours, minutes] = selectedSlot.time.split(':');
     const bookingDate = new Date(selectedSlot.date);
     bookingDate.setHours(parseInt(hours), parseInt(minutes));
@@ -73,6 +87,20 @@ export default function BookingSystem() {
 
   const handleCancelAndBook = (bookingToCancel: Booking) => {
     if (!selectedSlot || !user) return;
+
+    // Check daily limit for the new booking date
+    const existingBookingsForNewDay = bookings.filter(
+      booking => 
+        booking.userId === user.id &&
+        booking.date.toDateString() === selectedSlot.date.toDateString() &&
+        booking.id !== bookingToCancel.id
+    );
+
+    if (existingBookingsForNewDay.length > 0) {
+      setError('You can only book one slot per day');
+      setSelectedSlot(null);
+      return;
+    }
     
     // Remove existing booking
     const updatedBookings = bookings.filter(booking => booking.id !== bookingToCancel.id);
@@ -108,6 +136,7 @@ export default function BookingSystem() {
           )
       )
     );
+    setError(null);
   };
 
   const isExceedingWeeklyLimit = selectedSlot ? !checkWeeklyLimit(bookings, selectedSlot.date) : false;

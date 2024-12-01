@@ -13,7 +13,7 @@ export function useBookingLimits() {
         booking.date.toDateString() === selectedDate.toDateString()
     );
     
-    return userBookingsForDay.length < 1;
+    return userBookingsForDay.length === 0;
   };
 
   const checkWeeklyLimit = (bookings: Booking[], selectedDate: Date): boolean => {

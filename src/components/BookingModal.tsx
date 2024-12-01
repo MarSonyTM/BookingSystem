@@ -37,8 +37,8 @@ export default function BookingModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl w-full max-w-md relative shadow-2xl transform transition-all border border-gray-200/50 dark:border-gray-700/50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl w-full sm:w-auto sm:max-w-md relative shadow-2xl transform transition-all border-t sm:border border-gray-200/50 dark:border-gray-700/50 sm:rounded-2xl">
         <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
           <button
             onClick={onClose}

@@ -73,13 +73,13 @@ export default function BookingSystem() {
   return (
     <>
       <header className="sticky top-0 z-10 backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 shadow-sm border-b border-gray-200/50 dark:border-gray-700/50">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 dark:shadow-indigo-500/10">
-                <Activity className="h-6 w-6 text-white" />
+                <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              <h1 className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
                 Physio & Massage
               </h1>
             </div>
@@ -87,10 +87,13 @@ export default function BookingSystem() {
         </div>
       </header>
 
-      <main className="relative max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory">
+      <main className="relative max-w-7xl mx-auto px-4 py-4 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:gap-4 gap-3">
           {weekDays.map((day) => (
-            <div key={day.dayDate} className="snap-start">
+            <div 
+              key={day.dayDate} 
+              className="w-full sm:w-auto transition-all duration-300 ease-in-out"
+            >
               <DayColumn
                 {...day}
                 timeSlots={getTimeSlotsForDay(day.date)}

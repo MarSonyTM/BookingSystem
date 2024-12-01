@@ -19,15 +19,15 @@ export default function DayColumn({
   onBook,
   onCancel,
 }: DayColumnProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const bookedSlots = timeSlots.filter(slot => slot.isBooked).length;
   const availableSlots = timeSlots.length - bookedSlots;
 
   return (
-    <div className="flex-1 min-w-[280px] md:min-w-[320px] backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 rounded-2xl shadow-xl overflow-hidden transition-all transform hover:scale-[1.02] border border-gray-200/50 dark:border-gray-700/50">
+    <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ease-in-out transform hover:scale-[1.01] border border-gray-200/50 dark:border-gray-700/50">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full text-left p-5 bg-gradient-to-r from-transparent to-white/50 dark:to-gray-700/50 border-b border-gray-200/50 dark:border-gray-700/50 transition-colors group"
+        className="w-full text-left p-4 sm:p-5 bg-gradient-to-r from-transparent to-white/50 dark:to-gray-700/50 border-b border-gray-200/50 dark:border-gray-700/50 transition-colors group"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -57,8 +57,14 @@ export default function DayColumn({
         </div>
       </button>
       
-      {isExpanded && (
-        <div className="space-y-3 p-4 bg-white/30 dark:bg-gray-800/30 max-h-[calc(100vh-16rem)] overflow-y-auto">
+      <div 
+        className={`transition-all duration-300 ease-in-out ${
+          isExpanded 
+            ? 'max-h-[80vh] opacity-100' 
+            : 'max-h-0 opacity-0 overflow-hidden'
+        }`}
+      >
+        <div className="space-y-3 p-4 bg-white/30 dark:bg-gray-800/30 overflow-y-auto">
           {timeSlots.map((slot) => (
             <TimeSlot
               key={slot.time}
@@ -68,7 +74,7 @@ export default function DayColumn({
             />
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

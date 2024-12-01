@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getPasswordRequirements } from '../utils/security';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      setError(err instanceof Error ? err.message : getPasswordRequirements());
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +74,9 @@ export default function LoginPage() {
             disabled={isLoading}
           />
         </div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {getPasswordRequirements()}
+        </p>
       </div>
 
       <button

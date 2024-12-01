@@ -3,8 +3,9 @@ import { Activity } from 'lucide-react';
 import { generateTimeSlots, generateWeekDays } from '../utils/dateUtils';
 import DayColumn from '../components/DayColumn';
 import BookingModal from '../components/BookingModal';
-import { Booking, TimeSlot } from '../types/booking';
-import { useAdmin } from '../contexts/AdminContext';
+import { Booking } from '../types/booking';
+import { useAuth } from '../contexts/AuthContext';
+import { useBookingLimits } from '../hooks/useBookingLimits';
 
 export default function BookingSystem() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -12,18 +13,26 @@ export default function BookingSystem() {
     time: string;
     date: Date;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { user } = useAuth();
+  const { checkWeeklyLimit, getUserWeeklyBookings } = useBookingLimits();
 
   const timeSlots = generateTimeSlots();
   const weekDays = generateWeekDays();
-  const { weeklySchedule } = useAdmin();
 
-  const getTimeSlotsForDay = (date: Date): TimeSlot[] => {
-    const daySchedule = weeklySchedule.find(
-      (day) => day.date.toDateString() === date.toDateString()
-    );
+  const getExistingBooking = (date: Date): Booking | null => {
+    if (!user) return null;
+    
+    return bookings.find(
+      booking => 
+        booking.userId === user.id &&
+        booking.date.toDateString() === date.toDateString()
+    ) || null;
+  };
 
+  const getTimeSlotsForDay = (date: Date) => {
     return timeSlots.map((time) => {
-      const scheduleSlot = daySchedule?.slots.find((slot) => slot.time === time);
       const booking = bookings.find(
         (b) =>
           b.date.toDateString() === date.toDateString() &&
@@ -36,17 +45,15 @@ export default function BookingSystem() {
 
       return {
         time,
-        service: scheduleSlot?.service || null,
         isBooked: !!booking,
         booking,
+        serviceType: 'physio', // This would come from the admin's configuration
       };
     });
   };
 
-  const handleBook = (
-    data: { clientName: string; clientEmail: string; service: 'physio' | 'massage' }
-  ) => {
-    if (!selectedSlot) return;
+  const handleBook = () => {
+    if (!selectedSlot || !user) return;
 
     const [hours, minutes] = selectedSlot.time.split(':');
     const bookingDate = new Date(selectedSlot.date);
@@ -55,11 +62,36 @@ export default function BookingSystem() {
     const newBooking: Booking = {
       id: Math.random().toString(36).substr(2, 9),
       date: bookingDate,
-      ...data,
+      userId: user.id,
+      serviceType: 'physio', // This would come from the admin's configuration
     };
 
     setBookings([...bookings, newBooking]);
     setSelectedSlot(null);
+    setError(null);
+  };
+
+  const handleCancelAndBook = (bookingToCancel: Booking) => {
+    if (!selectedSlot || !user) return;
+    
+    // Remove existing booking
+    const updatedBookings = bookings.filter(booking => booking.id !== bookingToCancel.id);
+    
+    // Add new booking
+    const [hours, minutes] = selectedSlot.time.split(':');
+    const bookingDate = new Date(selectedSlot.date);
+    bookingDate.setHours(parseInt(hours), parseInt(minutes));
+
+    const newBooking: Booking = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: bookingDate,
+      userId: user.id,
+      serviceType: 'physio',
+    };
+
+    setBookings([...updatedBookings, newBooking]);
+    setSelectedSlot(null);
+    setError(null);
   };
 
   const handleCancel = (time: string, date: Date) => {
@@ -78,16 +110,19 @@ export default function BookingSystem() {
     );
   };
 
+  const isExceedingWeeklyLimit = selectedSlot ? !checkWeeklyLimit(bookings, selectedSlot.date) : false;
+  const weeklyBookings = selectedSlot ? getUserWeeklyBookings(bookings, selectedSlot.date) : [];
+
   return (
     <>
       <header className="sticky top-0 z-10 backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 shadow-sm border-b border-gray-200/50 dark:border-gray-700/50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 dark:shadow-indigo-500/10">
-                <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <Activity className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
                 Physio & Massage
               </h1>
             </div>
@@ -95,13 +130,15 @@ export default function BookingSystem() {
         </div>
       </header>
 
-      <main className="relative max-w-7xl mx-auto px-4 py-4 sm:py-6">
-        <div className="flex flex-col sm:flex-row sm:gap-4 gap-3">
+      <main className="relative max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {error && (
+          <div className="mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
+        <div className="flex flex-col space-y-4">
           {weekDays.map((day) => (
-            <div 
-              key={day.dayDate} 
-              className="w-full sm:w-auto transition-all duration-300 ease-in-out"
-            >
+            <div key={day.dayDate}>
               <DayColumn
                 {...day}
                 timeSlots={getTimeSlotsForDay(day.date)}
@@ -115,10 +152,17 @@ export default function BookingSystem() {
 
       <BookingModal
         isOpen={!!selectedSlot}
-        onClose={() => setSelectedSlot(null)}
+        onClose={() => {
+          setSelectedSlot(null);
+          setError(null);
+        }}
         onBook={handleBook}
         selectedTime={selectedSlot?.time || ''}
         selectedDate={selectedSlot?.date || new Date()}
+        existingBooking={selectedSlot ? getExistingBooking(selectedSlot.date) : null}
+        weeklyBookings={weeklyBookings}
+        onCancelPrevious={handleCancelAndBook}
+        exceedingWeeklyLimit={isExceedingWeeklyLimit}
       />
     </>
   );

@@ -1,5 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, UserRole } from '../types/user';
+import {
+  checkRateLimit,
+  validateAccount,
+  validateCredentials,
+  registerUser,
+  generateCsrfToken,
+  isPasswordComplex,
+  sanitizeInput,
+  sanitizeError,
+  getUserRole,
+  getUserName,
+} from '../utils/security';
+import { updateLastActivity, validateSession } from '../middleware/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -7,18 +21,14 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
-}
-
-interface User {
-  email: string;
-  name: string;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Constants for token storage
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'user_data';
+const ACTIVITY_KEY = 'last_activity';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
@@ -27,54 +37,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const navigate = useNavigate();
 
-  // Validate email format
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Validate password strength
-  const isValidPassword = (password: string): boolean => {
-    return password.length >= 8;
-  };
-
   const login = async (email: string, password: string) => {
     try {
+      email = sanitizeInput(email);
+      
       if (!isValidEmail(email)) {
         throw new Error('Invalid email format');
       }
 
-      if (!isValidPassword(password)) {
-        throw new Error('Password must be at least 8 characters long');
+      if (!checkRateLimit(email)) {
+        throw new Error('Too many login attempts. Please try again later.');
       }
 
-      // Simulate API call with basic security measures
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if account exists
+      if (!validateAccount(email)) {
+        throw new Error('Account does not exist. Please register first.');
+      }
+
+      // Validate credentials
+      if (!validateCredentials(email, password)) {
+        throw new Error('Invalid password');
+      }
+
+      if (!isPasswordComplex(password)) {
+        throw new Error('Invalid password format');
+      }
+
+      const csrfToken = generateCsrfToken();
+      const mockToken = btoa(`${email}:${Date.now()}`);
+      const role = getUserRole(email) as UserRole;
+      const name = getUserName(email);
       
-      // In a real application, this would be a JWT token from your backend
-      const mockToken = btoa(`${email}:${new Date().getTime()}`);
+      const userData: User = {
+        id: btoa(email),
+        email,
+        name,
+        role,
+        emailVerified: true,
+      };
       
-      const userData = { email, name: email.split('@')[0] };
-      
-      // Store auth data securely
       localStorage.setItem(TOKEN_KEY, mockToken);
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
+      localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
       
       setUser(userData);
-      navigate('/');
+      updateLastActivity();
+      navigate(role === 'admin' ? '/admin' : '/');
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Login failed:', sanitizeError(error));
       throw error;
     }
   };
 
   const register = async (email: string, password: string, name: string) => {
     try {
+      email = sanitizeInput(email);
+      name = sanitizeInput(name);
+
       if (!isValidEmail(email)) {
         throw new Error('Invalid email format');
       }
 
-      if (!isValidPassword(password)) {
+      if (!isPasswordComplex(password)) {
         throw new Error('Password must be at least 8 characters long');
       }
 
@@ -82,19 +111,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Name must be at least 2 characters long');
       }
 
-      // Simulate API call with basic security measures
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockToken = btoa(`${email}:${new Date().getTime()}`);
-      const userData = { email, name };
+      // Register new user
+      registerUser(email, password, name);
+
+      const mockToken = btoa(`${email}:${Date.now()}`);
+      const userData: User = {
+        id: btoa(email),
+        email,
+        name,
+        role: 'user',
+        emailVerified: true,
+      };
       
       localStorage.setItem(TOKEN_KEY, mockToken);
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
+      localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
       
       setUser(userData);
       navigate('/');
     } catch (error) {
-      console.error('Registration failed:', error);
+      console.error('Registration failed:', sanitizeError(error));
       throw error;
     }
   };
@@ -102,41 +138,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(ACTIVITY_KEY);
     setUser(null);
     navigate('/login');
   };
 
-  // Check token expiration on mount and setup periodic checks
+  // Session validation
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (token) {
-        // In a real application, you would verify the token's expiration
-        // For this demo, we'll use a simple timestamp check
-        const [, timestamp] = atob(token).split(':');
-        const tokenAge = Date.now() - parseInt(timestamp);
-        
-        // Logout if token is older than 24 hours
-        if (tokenAge > 24 * 60 * 60 * 1000) {
-          logout();
-        }
+    const checkSession = () => {
+      const lastActivity = localStorage.getItem(ACTIVITY_KEY);
+      if (lastActivity && !validateSession(parseInt(lastActivity))) {
+        logout();
       }
     };
 
-    checkAuth();
-    const interval = setInterval(checkAuth, 5 * 60 * 1000); // Check every 5 minutes
+    checkSession();
+    const interval = setInterval(checkSession, 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
 
+  // Update activity on user interaction
+  useEffect(() => {
+    const handleActivity = () => {
+      if (user) {
+        updateLastActivity();
+      }
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+    };
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
-        isAuthenticated: !!user,
+        isAuthenticated: !!user?.emailVerified,
         user,
         login,
         register,
         logout,
+        isAdmin: user?.role === 'admin',
       }}
     >
       {children}

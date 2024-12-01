@@ -5,7 +5,7 @@ import { LogOut } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function BookingLayout() {
+export default function AdminLayout() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -17,7 +17,7 @@ export default function BookingLayout() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-2">
-                <span className="text-gray-700 dark:text-gray-300">Welcome,</span>
+                <span className="text-gray-700 dark:text-gray-300">Admin:</span>
                 <span className="font-medium text-gray-900 dark:text-white">
                   {user?.name}
                 </span>

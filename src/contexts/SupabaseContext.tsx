@@ -1,82 +1,103 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 interface SupabaseContextType {
   user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  updateProfile: (data: { username?: string; website?: string; avatar_url?: string }) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
+const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check active sessions
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error('Session check error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to check session');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Listen for changes on auth state (signed in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      setError(null); // Clear any previous errors
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error: error as Error };
+    }
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    return { error };
+  const signUp = async (email: string, password: string, name: string) => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/verify-email`,
+        },
+      });
+      return { error };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { error: error as Error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const updateProfile = async (data: { username?: string; website?: string; avatar_url?: string }) => {
-    if (!user) throw new Error('No user logged in');
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        updated_at: new Date().toISOString(),
-        ...data,
-      });
-
-    if (error) throw error;
-  };
-
-  const value = {
-    user,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    updateProfile,
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to sign out');
+    }
   };
 
   return (
-    <SupabaseContext.Provider value={value}>
+    <SupabaseContext.Provider
+      value={{
+        user,
+        signIn,
+        signUp,
+        signOut,
+        isLoading,
+        error,
+      }}
+    >
       {children}
     </SupabaseContext.Provider>
   );
@@ -84,7 +105,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
 export function useSupabase() {
   const context = useContext(SupabaseContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useSupabase must be used within a SupabaseProvider');
   }
   return context;

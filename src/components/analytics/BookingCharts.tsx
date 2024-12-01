@@ -7,8 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   Legend,
 } from 'recharts';
 import { Booking } from '../../types/booking';
@@ -19,44 +17,77 @@ interface BookingChartsProps {
 }
 
 export default function BookingCharts({ bookings }: BookingChartsProps) {
-  // Prepare data for daily bookings chart
-  const startDate = startOfWeek(new Date());
-  const dailyData = Array.from({ length: 5 }, (_, i) => {
-    const date = addDays(startDate, i);
-    const dayBookings = bookings.filter(
-      b => b.date.toDateString() === date.toDateString()
-    );
+  // Group bookings by user and week
+  const userBookings = bookings.reduce((acc, booking) => {
+    const weekStart = startOfWeek(booking.date, { weekStartsOn: 1 });
+    const weekKey = format(weekStart, 'MMM d');
     
+    if (!acc[weekKey]) {
+      acc[weekKey] = {};
+    }
+    
+    if (!acc[weekKey][booking.userId]) {
+      acc[weekKey][booking.userId] = 0;
+    }
+    
+    acc[weekKey][booking.userId]++;
+    return acc;
+  }, {} as Record<string, Record<string, number>>);
+
+  // Transform data for the chart
+  const chartData = Object.entries(userBookings).map(([week, users]) => {
     return {
-      name: format(date, 'EEE'),
-      physio: dayBookings.filter(b => b.serviceType === 'physio').length,
-      massage: dayBookings.filter(b => b.serviceType === 'massage').length,
+      week,
+      ...Object.entries(users).reduce((acc, [userId, count]) => {
+        acc[`User ${userId.slice(0, 4)}`] = count;
+        return acc;
+      }, {} as Record<string, number>),
     };
   });
 
-  // Prepare data for hourly distribution
-  const hourlyData = Array.from({ length: 8 }, (_, i) => {
-    const hour = i + 10; // Starting from 10 AM
-    const hourBookings = bookings.filter(b => new Date(b.date).getHours() === hour);
-    
-    return {
-      name: `${hour}:00`,
-      bookings: hourBookings.length,
-    };
-  });
+  // Get unique users for the legend
+  const uniqueUsers = Array.from(
+    new Set(bookings.map(b => `User ${b.userId.slice(0, 4)}`))
+  );
+
+  // Generate colors for each user
+  const colors = [
+    '#818CF8', // Indigo
+    '#C084FC', // Purple
+    '#34D399', // Emerald
+    '#F472B6', // Pink
+    '#60A5FA', // Blue
+    '#FBBF24', // Amber
+  ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div className="mt-6">
       <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Daily Bookings by Service Type
+          Weekly User Activity
         </h3>
-        <div className="h-[300px]">
+        <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailyData}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis dataKey="name" stroke="#6B7280" />
-              <YAxis stroke="#6B7280" />
+              <XAxis 
+                dataKey="week" 
+                stroke="#6B7280"
+                tick={{ fill: '#6B7280' }}
+              />
+              <YAxis 
+                stroke="#6B7280"
+                tick={{ fill: '#6B7280' }}
+                label={{ 
+                  value: 'Number of Bookings',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fill: '#6B7280' }
+                }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -64,42 +95,24 @@ export default function BookingCharts({ bookings }: BookingChartsProps) {
                   border: 'none',
                   boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                 }}
+                cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
               />
-              <Legend />
-              <Bar dataKey="physio" fill="#818CF8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="massage" fill="#C084FC" radius={[4, 4, 0, 0]} />
+              <Legend 
+                wrapperStyle={{
+                  paddingTop: '20px'
+                }}
+              />
+              {uniqueUsers.map((user, index) => (
+                <Bar
+                  key={user}
+                  dataKey={user}
+                  fill={colors[index % colors.length]}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                  stackId="stack"
+                />
+              ))}
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Hourly Booking Distribution
-        </h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis dataKey="name" stroke="#6B7280" />
-              <YAxis stroke="#6B7280" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  borderRadius: '0.5rem',
-                  border: 'none',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="bookings"
-                stroke="#818CF8"
-                strokeWidth={2}
-                dot={{ fill: '#818CF8', strokeWidth: 2 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>

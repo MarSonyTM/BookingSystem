@@ -1,9 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { ServiceType, WeeklySchedule, Booking } from '../types/booking';
 import { generateTimeSlots, generateWeekDays, formatTime } from '../utils/dateUtils';
 import BookingMetrics from '../components/analytics/BookingMetrics';
 import BookingCharts from '../components/analytics/BookingCharts';
+
+// Sample data generator for demonstration
+const generateSampleBookings = (): Booking[] => {
+  const bookings: Booking[] = [];
+  const users = ['user1', 'user2', 'user3'];
+  const today = new Date();
+  
+  for (let i = 0; i < 20; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - Math.floor(Math.random() * 14)); // Random day within last 2 weeks
+    date.setHours(10 + Math.floor(Math.random() * 7), Math.random() < 0.5 ? 0 : 30);
+    
+    bookings.push({
+      id: `booking-${i}`,
+      date,
+      userId: users[Math.floor(Math.random() * users.length)],
+      serviceType: Math.random() < 0.5 ? 'physio' : 'massage',
+    });
+  }
+  
+  return bookings;
+};
 
 export default function AdminDashboard() {
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
@@ -13,7 +35,12 @@ export default function AdminDashboard() {
     slots: {},
   });
   const [activeTab, setActiveTab] = useState<'schedule' | 'analytics'>('analytics');
-  const [bookings, setBookings] = useState<Booking[]>([]); // This would be fetched from your backend
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  // Initialize with sample data
+  useEffect(() => {
+    setBookings(generateSampleBookings());
+  }, []);
 
   const timeSlots = generateTimeSlots();
   const weekDays = generateWeekDays();

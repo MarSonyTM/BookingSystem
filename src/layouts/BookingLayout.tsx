@@ -1,13 +1,17 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { LogOut } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 export default function BookingLayout() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useSupabase();
   const { theme, toggleTheme } = useTheme();
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
@@ -19,13 +23,13 @@ export default function BookingLayout() {
               <div className="flex items-center space-x-2">
                 <span className="text-gray-700 dark:text-gray-300">Welcome,</span>
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {user?.name}
+                  {user?.email}
                 </span>
               </div>
               <div className="flex items-center space-x-4">
                 <ThemeToggle theme={theme} onToggle={toggleTheme} />
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                 >
                   <LogOut size={18} />

@@ -9,17 +9,21 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import VerifyPendingPage from './pages/VerifyPendingPage';
 import BookingSystem from './pages/BookingSystem';
 import AdminDashboard from './pages/AdminDashboard';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SupabaseProvider, useSupabase } from './contexts/SupabaseContext';
 
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { user, loading } = useSupabase();
   
-  if (!isAuthenticated) {
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!user) {
     return <Navigate to="/login" />;
   }
   
-  if (requireAdmin && !isAdmin) {
+  if (requireAdmin && user.user_metadata.role !== 'admin') {
     return <Navigate to="/" />;
   }
   
@@ -29,8 +33,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
 function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
+      <SupabaseProvider>
+        <ThemeProvider>
           <Routes>
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
@@ -62,8 +66,8 @@ function App() {
               />
             </Route>
           </Routes>
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </SupabaseProvider>
     </BrowserRouter>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Mail, User, Clock } from 'lucide-react';
-import { ServiceType } from '../types/booking';
 import { formatTime } from '../utils/dateUtils';
+import { useAdmin } from '../contexts/AdminContext';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -9,7 +9,6 @@ interface BookingModalProps {
   onBook: (data: {
     clientName: string;
     clientEmail: string;
-    service: ServiceType;
   }) => void;
   selectedTime: string;
   selectedDate: Date;
@@ -24,16 +23,22 @@ export default function BookingModal({
 }: BookingModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
-  const [service, setService] = useState<ServiceType>('physio');
+  const { weeklySchedule } = useAdmin();
 
   if (!isOpen) return null;
 
+  // Get the service type for the selected slot
+  const daySchedule = weeklySchedule.find(
+    (day) => day.date.toDateString() === selectedDate.toDateString()
+  );
+  const slot = daySchedule?.slots.find((s) => s.time === selectedTime);
+  const serviceType = slot?.service || 'Not available';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onBook({ clientName, clientEmail, service });
+    onBook({ clientName, clientEmail });
     setClientName('');
     setClientEmail('');
-    setService('physio');
   };
 
   return (
@@ -48,7 +53,7 @@ export default function BookingModal({
           </button>
           
           <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-1">
-            Book Appointment
+            Book {serviceType} Appointment
           </h2>
           
           <div className="flex items-center space-x-4 mt-4">
@@ -64,20 +69,6 @@ export default function BookingModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Service Type
-            </label>
-            <select
-              value={service}
-              onChange={(e) => setService(e.target.value as ServiceType)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300/50 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50 text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20 transition-all backdrop-blur-sm"
-            >
-              <option value="physio">Physiotherapy</option>
-              <option value="massage">Massage</option>
-            </select>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Your Name

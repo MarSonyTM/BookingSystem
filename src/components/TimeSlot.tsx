@@ -10,12 +10,16 @@ interface TimeSlotProps {
 }
 
 export default function TimeSlot({ slot, onBook, onCancel }: TimeSlotProps) {
+  const isBookable = !slot.isBooked && slot.service !== null;
+
   return (
     <div className={`
-      rounded-xl p-4 transition-all duration-200 backdrop-blur-sm
+      rounded-xl p-4 transition-all duration-200 backdrop-blur-sm border
       ${slot.isBooked 
-        ? 'bg-indigo-50/70 dark:bg-indigo-900/20 border border-indigo-100/50 dark:border-indigo-800/50' 
-        : 'bg-white/70 dark:bg-gray-700/70 border border-gray-200/50 dark:border-gray-600/50 hover:border-indigo-200/50 dark:hover:border-indigo-700/50'
+        ? 'bg-indigo-50/70 dark:bg-indigo-900/20 border-indigo-100/50 dark:border-indigo-800/50' 
+        : isBookable 
+          ? 'bg-white/70 dark:bg-gray-700/70 border-gray-200/50 dark:border-gray-600/50 hover:border-indigo-200/50 dark:hover:border-indigo-700/50'
+          : 'bg-gray-100/70 dark:bg-gray-600/70 border-gray-200/50 dark:border-gray-600/50'
       }
     `}>
       <div className="flex items-center justify-between">
@@ -38,6 +42,11 @@ export default function TimeSlot({ slot, onBook, onCancel }: TimeSlotProps) {
             <span className="font-semibold text-gray-900 dark:text-white">
               {formatTime(slot.time)}
             </span>
+            {slot.service && (
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                {slot.service === 'physio' ? 'Physiotherapy' : 'Massage'}
+              </div>
+            )}
             {slot.isBooked && (
               <div className="flex items-center mt-1 space-x-1">
                 <User size={14} className="text-gray-400 dark:text-gray-500" />
@@ -56,14 +65,14 @@ export default function TimeSlot({ slot, onBook, onCancel }: TimeSlotProps) {
           >
             Cancel
           </button>
-        ) : (
+        ) : isBookable ? (
           <button
             onClick={onBook}
             className="px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 text-white text-sm font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-600 transition-all shadow-sm hover:shadow-md"
           >
             Book
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

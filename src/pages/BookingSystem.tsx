@@ -4,6 +4,7 @@ import { generateTimeSlots, generateWeekDays } from '../utils/dateUtils';
 import DayColumn from '../components/DayColumn';
 import BookingModal from '../components/BookingModal';
 import { Booking, TimeSlot } from '../types/booking';
+import { useAdmin } from '../contexts/AdminContext';
 
 export default function BookingSystem() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -14,9 +15,15 @@ export default function BookingSystem() {
 
   const timeSlots = generateTimeSlots();
   const weekDays = generateWeekDays();
+  const { weeklySchedule } = useAdmin();
 
   const getTimeSlotsForDay = (date: Date): TimeSlot[] => {
+    const daySchedule = weeklySchedule.find(
+      (day) => day.date.toDateString() === date.toDateString()
+    );
+
     return timeSlots.map((time) => {
+      const scheduleSlot = daySchedule?.slots.find((slot) => slot.time === time);
       const booking = bookings.find(
         (b) =>
           b.date.toDateString() === date.toDateString() &&
@@ -29,6 +36,7 @@ export default function BookingSystem() {
 
       return {
         time,
+        service: scheduleSlot?.service || null,
         isBooked: !!booking,
         booking,
       };

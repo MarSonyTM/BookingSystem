@@ -1,26 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.types'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = 'https://mjaocasztagoewdovbhn.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qYW9jYXN6dGFnb2V3ZG92YmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODU1MzEsImV4cCI6MjA0ODY2MTUzMX0.C1zGSu5k1ZoN6n8LY96rUzOvYIN8Lbjqn7aluAViYbs'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-// Remove any trailing spaces from the URL and key
-const cleanUrl = supabaseUrl.trim()
-const cleanKey = supabaseAnonKey.trim()
-
-export const supabase = createClient<Database>(cleanUrl, cleanKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   },
-  global: {
-    headers: {
-      'X-Client-Info': 'supabase-js-web'
+  realtime: {
+    params: {
+      eventsPerSecond: 10
     }
   }
 }) 

@@ -6,6 +6,7 @@ import { useSupabase } from '../contexts/SupabaseContext';
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useSupabase();
@@ -17,13 +18,12 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const { error: signUpError } = await signUp(email, password);
+      const { error: signUpError } = await signUp(email, password, name);
       
       if (signUpError) {
         throw signUpError;
       }
 
-      // Redirect to login page after successful registration
       navigate('/login', { 
         state: { 
           message: 'Registration successful! Please check your email to verify your account.' 
@@ -43,6 +43,27 @@ export default function RegisterPage() {
           {error}
         </div>
       )}
+
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Full Name
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <User size={18} className="text-gray-400 dark:text-gray-500" />
+          </div>
+          <input
+            id="name"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300/50 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50 text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20 transition-all backdrop-blur-sm"
+            placeholder="John Doe"
+            disabled={isLoading}
+          />
+        </div>
+      </div>
 
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -23,7 +23,7 @@ export default function BookingLayout() {
               <div className="flex items-center space-x-2">
                 <span className="text-gray-700 dark:text-gray-300">Welcome,</span>
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {user?.email}
+                  {user?.user_metadata?.name || user?.email}
                 </span>
               </div>
               <div className="flex items-center space-x-4">

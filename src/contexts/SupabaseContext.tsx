@@ -61,15 +61,59 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setError(null);
-      const { error } = await supabase.auth.signUp({
+      console.log('Starting signup process...');
+
+      // Sign up the user
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          data: { name },
+          data: { 
+            name,
+            role: 'user'
+          },
           emailRedirectTo: `${window.location.origin}/verify-email`,
         },
       });
-      return { error };
+
+      console.log('Signup response:', { data, error: signUpError });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (!data.user) {
+        throw new Error('No user data returned from signup');
+      }
+
+      // Add debug logging
+      console.log('Creating profile for user:', {
+        id: data.user.id,
+        email: email.trim(),
+        name,
+        role: 'user'
+      });
+
+      // Create profile with service role client
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          email: email.trim(),
+          name,
+          role: 'user'
+        })
+        .single();
+
+      if (profileError) {
+        console.error('Full profile error:', profileError);
+        throw new Error(`Failed to create user profile: ${profileError.message}`);
+      }
+
+      // Redirect to verification page
+      window.location.href = '/verify-pending';
+
+      return { error: null };
     } catch (error) {
       console.error('Sign up error:', error);
       return { error: error as Error };

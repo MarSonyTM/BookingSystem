@@ -1,13 +1,30 @@
 import { supabase } from './lib/supabase'
 
-async function testConnection() {
+async function cleanDatabase() {
   try {
-    const { data, error } = await supabase.from('profiles').select('*').limit(1)
-    if (error) throw error
-    console.log('Connection successful:', data)
+    // First delete all bookings
+    const { error: bookingsError } = await supabase
+      .from('bookings')
+      .delete()
+      .not('id', 'is', null);
+    if (bookingsError) throw bookingsError;
+    console.log('Deleted all bookings');
+
+    // Delete all profiles
+    const { error: profilesError } = await supabase
+      .from('profiles')
+      .delete()
+      .not('id', 'is', null);
+    if (profilesError) throw profilesError;
+    console.log('Deleted all profiles');
+
+    // Note: Cannot delete auth users directly through the client
+    // This needs to be done through the Supabase dashboard
+    console.log('Note: Please delete users through the Supabase dashboard Auth > Users section');
+    console.log('Database cleanup completed');
   } catch (error) {
-    console.error('Connection error:', error)
+    console.error('Database cleanup error:', error);
   }
 }
 
-testConnection() 
+cleanDatabase() 

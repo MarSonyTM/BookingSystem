@@ -1,73 +1,54 @@
-import React, { useState } from 'react';
-import { Mail, RefreshCw } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Mail, ArrowLeft } from 'lucide-react';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 export default function VerifyPendingPage() {
-  const [isResending, setIsResending] = useState(false);
-  const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const { user, resendVerification } = useAuth();
-
-  const handleResend = async () => {
-    setIsResending(true);
-    setResendStatus('idle');
-    
-    try {
-      const success = await resendVerification();
-      setResendStatus(success ? 'success' : 'error');
-    } catch (error) {
-      setResendStatus('error');
-    } finally {
-      setIsResending(false);
-    }
-  };
+  const { user } = useSupabase();
+  const email = user?.email || 'your email address';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl w-full max-w-md p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
-        <div className="text-center">
-          <div className="inline-flex p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full">
-            <Mail className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          
-          <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-            Verify your email
-          </h2>
-          
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            We've sent a verification link to{' '}
-            <span className="font-medium text-gray-900 dark:text-white">
-              {user?.email}
-            </span>
-          </p>
-          
-          <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-            Please check your email and click the verification link to complete your registration.
-          </p>
+    <div className="text-center space-y-6">
+      <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-full w-fit mx-auto">
+        <Mail className="h-8 w-8 text-indigo-500 dark:text-indigo-400" />
+      </div>
+      
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          Check your email
+        </h2>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          We've sent a verification link to:
+        </p>
+        <p className="mt-1 font-medium text-gray-900 dark:text-white">
+          {email}
+        </p>
+      </div>
 
-          {resendStatus === 'success' && (
-            <div className="mt-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm">
-              Verification email sent successfully!
-            </div>
-          )}
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-sm">
+        <p className="text-gray-600 dark:text-gray-400">
+          Click the link in the email to verify your account. If you don't see the email, check your spam folder.
+        </p>
+      </div>
 
-          {resendStatus === 'error' && (
-            <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-              Failed to resend verification email. Please try again.
-            </div>
-          )}
-
-          <button
-            onClick={handleResend}
-            disabled={isResending}
-            className="mt-6 inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 px-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Didn't receive the email?
+        </p>
+        <div className="flex flex-col space-y-3">
+          <Link
+            to="/register"
+            className="inline-flex items-center justify-center px-4 py-2 border border-indigo-600 dark:border-indigo-400 text-sm font-medium rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
-            {isResending ? (
-              <RefreshCw className="w-5 h-5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-5 h-5" />
-            )}
-            <span>Resend verification email</span>
-          </button>
+            Try signing up again
+          </Link>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <ArrowLeft size={16} />
+            <span>Back to Sign In</span>
+          </Link>
         </div>
       </div>
     </div>

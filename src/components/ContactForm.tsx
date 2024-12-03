@@ -8,23 +8,34 @@ export default function ContactForm() {
     message: '',
   });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
+    setErrorMessage(null);
 
     try {
       const response = await fetch('/.netlify/functions/contact-form', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Failed to submit form');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit form');
+      }
 
       setStatus('success');
       setFormData({ name: '', email: '', message: '' });
     } catch (error) {
+      console.error('Form submission error:', error);
       setStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to send message');
     }
   };
 

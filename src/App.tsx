@@ -11,6 +11,8 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import VerifyPendingPage from './pages/VerifyPendingPage';
 import BookingSystem from './pages/BookingSystem';
 import AdminDashboard from './pages/AdminDashboard';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -51,6 +53,8 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/verify-pending" element={<VerifyPendingPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
             
             <Route element={<BookingLayout />}>

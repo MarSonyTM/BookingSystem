@@ -1,73 +1,102 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, XCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function VerifyEmailPage() {
-  const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [searchParams] = useSearchParams();
-  const { verifyEmail } = useAuth();
   const navigate = useNavigate();
+  const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const verifyToken = async () => {
-      const token = searchParams.get('token');
-      if (!token) {
-        setVerificationStatus('error');
-        return;
-      }
+    const verifyEmail = async () => {
+      try {
+        // Get the token hash and type from URL
+        const token_hash = searchParams.get('token_hash');
+        const type = searchParams.get('type');
 
-      const success = await verifyEmail(token);
-      setVerificationStatus(success ? 'success' : 'error');
+        if (!token_hash || !type) {
+          setVerificationStatus('error');
+          setError('Invalid verification link');
+          return;
+        }
+
+        // Exchange the token hash for a session
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: 'email',
+          email: searchParams.get('email') || '',
+        });
+
+        if (error) throw error;
+
+        // If verification successful, update the user's profile
+        if (data?.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ email_verified: true })
+            .eq('id', data.user.id);
+
+          if (profileError) throw profileError;
+        }
+
+        setVerificationStatus('success');
+        
+        // Automatically redirect to login after 3 seconds
+        setTimeout(() => {
+          navigate('/login', { 
+            state: { message: 'Email verified successfully! You can now log in.' }
+          });
+        }, 3000);
+      } catch (err) {
+        console.error('Verification error:', err);
+        setVerificationStatus('error');
+        setError(err instanceof Error ? err.message : 'Failed to verify email');
+      }
     };
 
-    verifyToken();
-  }, [searchParams, verifyEmail]);
+    verifyEmail();
+  }, [searchParams, navigate]);
+
+  if (verificationStatus === 'loading') {
+    return (
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Verifying your email...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl w-full max-w-md p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
-        {verificationStatus === 'verifying' ? (
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <h2 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Verifying your email...
-            </h2>
-          </div>
-        ) : verificationStatus === 'success' ? (
-          <div className="text-center">
-            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-            <h2 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Email Verified Successfully!
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Your email has been verified. You can now access your account.
-            </p>
-            <button
-              onClick={() => navigate('/')}
-              className="mt-6 w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 px-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-            >
-              Continue to Dashboard
-            </button>
-          </div>
-        ) : (
-          <div className="text-center">
-            <XCircle className="w-12 h-12 text-red-500 mx-auto" />
-            <h2 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Verification Failed
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              The verification link is invalid or has expired.
-            </p>
-            <button
-              onClick={() => navigate('/login')}
-              className="mt-6 w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 px-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-            >
-              Back to Login
-            </button>
-          </div>
-        )}
-      </div>
+    <div className="text-center">
+      {verificationStatus === 'success' ? (
+        <div className="space-y-4">
+          <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Email Verified!</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Your email has been successfully verified. You will be redirected to the login page in a few seconds...
+          </p>
+          <Link
+            to="/login"
+            className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Sign In Now
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <XCircle className="h-12 w-12 text-red-500 mx-auto" />
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Verification Failed</h2>
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+          <Link
+            to="/login"
+            className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

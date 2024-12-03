@@ -61,7 +61,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setError(null);
-      console.log('Starting signup process...');
+      console.log('Starting signup process with email:', email);
 
       // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -76,7 +76,13 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      console.log('Signup response:', { data, error: signUpError });
+      console.log('Signup response:', {
+        success: !!data?.user,
+        userId: data?.user?.id,
+        email: data?.user?.email,
+        confirmationSent: data?.user?.confirmation_sent_at,
+        error: signUpError
+      });
 
       if (signUpError) {
         throw signUpError;
@@ -86,27 +92,26 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No user data returned from signup');
       }
 
-      // Add debug logging
-      console.log('Creating profile for user:', {
-        id: data.user.id,
-        email: email.trim(),
-        name,
-        role: 'user'
-      });
-
-      // Create profile with service role client
+      // Create profile using upsert
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: email.trim(),
-          name,
-          role: 'user'
-        })
+        .upsert(
+          {
+            id: data.user.id,
+            email: email.trim(),
+            name,
+            role: 'user'
+          },
+          {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          }
+        )
+        .select()
         .single();
 
       if (profileError) {
-        console.error('Full profile error:', profileError);
+        console.error('Profile creation error:', profileError);
         throw new Error(`Failed to create user profile: ${profileError.message}`);
       }
 

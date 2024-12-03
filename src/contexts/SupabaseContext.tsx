@@ -61,67 +61,55 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setError(null);
-      console.log('Starting signup process with email:', email);
+      setIsLoading(true);
 
-      // Sign up the user
+      // Log the environment variables (mask sensitive data)
+      console.log('Environment check:', {
+        hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
+        hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+        redirectUrl: `${window.location.origin}/verify-email`
+      });
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          data: { 
-            name,
-            role: 'user'
-          },
-          emailRedirectTo: `${window.location.origin}/verify-email`,
-        },
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/verify-email`
+        }
       });
 
-      console.log('Signup response:', {
-        success: !!data?.user,
-        userId: data?.user?.id,
-        email: data?.user?.email,
-        confirmationSent: data?.user?.confirmation_sent_at,
-        error: signUpError
+      // Log the full response
+      console.log('Full signup response:', {
+        data,
+        error: signUpError,
+        user: data?.user,
+        session: data?.session
       });
 
       if (signUpError) {
+        console.error('Signup error:', signUpError);
         throw signUpError;
       }
 
       if (!data.user) {
-        throw new Error('No user data returned from signup');
+        throw new Error('No user data returned');
       }
 
-      // Create profile using upsert
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(
-          {
-            id: data.user.id,
-            email: email.trim(),
-            name,
-            role: 'user'
-          },
-          {
-            onConflict: 'id',
-            ignoreDuplicates: false
-          }
-        )
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        throw new Error(`Failed to create user profile: ${profileError.message}`);
-      }
-
-      // Redirect to verification page
-      window.location.href = '/verify-pending';
+      console.log('Signup successful:', {
+        userId: data.user.id,
+        email: data.user.email,
+        confirmationSent: data.user.confirmation_sent_at,
+        emailConfirmed: data.user.email_confirmed_at,
+        identities: data.user.identities
+      });
 
       return { error: null };
     } catch (error) {
       console.error('Sign up error:', error);
       return { error: error as Error };
+    } finally {
+      setIsLoading(false);
     }
   };
 

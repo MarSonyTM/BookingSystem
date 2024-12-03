@@ -22,10 +22,19 @@ const getStartOfWorkWeek = (date: Date): Date => {
 };
 
 export const generateWeekDays = () => {
-  const startDate = getStartOfWorkWeek(new Date());
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  
+  // Calculate how many days to add to get to Monday
+  const daysToMonday = currentDay === 0 ? 1 : currentDay === 1 ? 0 : 1 - currentDay;
+  
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() + daysToMonday);
+  startDate.setHours(0, 0, 0, 0);
+  
   const weekDays = [];
   
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 5; i++) { // Only generate 5 days (Monday to Friday)
     const date = addDays(startDate, i);
     weekDays.push({
       date,

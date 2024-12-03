@@ -1,22 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '../types/database.types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Key exists:', !!supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+console.log('Initializing Supabase with:', {
+  url: supabaseUrl,
+  hasKey: !!supabaseAnonKey,
+  siteUrl: import.meta.env.VITE_SITE_URL,
+  senderEmail: import.meta.env.VITE_SENDER_EMAIL
+});
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    debug: true
   },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
+  headers: {
+    'X-Client-Info': 'physio-booking@1.0.0'
   }
-}) 
+}); 

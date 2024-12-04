@@ -13,6 +13,7 @@ import BookingSystem from './pages/BookingSystem';
 import AdminDashboard from './pages/AdminDashboard';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import OverviewPage from './pages/OverviewPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -60,6 +61,14 @@ function App() {
             <Route element={<BookingLayout />}>
               <Route
                 path="/"
+                element={
+                  <ProtectedRoute>
+                    <OverviewPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/book"
                 element={
                   <ProtectedRoute>
                     <BookingSystem />

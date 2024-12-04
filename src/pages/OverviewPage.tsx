@@ -1,27 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Calendar, Clock, Users } from 'lucide-react';
+import { format } from 'date-fns';
 import StatsCard from '../components/overview/StatsCard';
 import QuickActions from '../components/overview/QuickActions';
 import HealthTips from '../components/overview/HealthTips';
 import OpeningHours from '../components/overview/OpeningHours';
-import ThemeToggle from '../components/ThemeToggle';
-import { useTheme } from '../contexts/ThemeContext';
+import { useBookings } from '../hooks/useBookings';
+import { getNextAvailableSlot } from '../utils/timeUtils';
 
 export default function OverviewPage() {
-  const { theme, toggleTheme } = useTheme();
+  const { bookings } = useBookings();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [nextSlot, setNextSlot] = useState<{
+    date: string;
+    time: string;
+    full: string;
+  } | null>(null);
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Update next available slot when bookings change
+  useEffect(() => {
+    const slot = getNextAvailableSlot(bookings);
+    setNextSlot(slot);
+  }, [bookings, currentTime]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
       <div className="absolute inset-0 bg-grid-gray-900/[0.02] dark:bg-grid-white/[0.02] bg-[size:32px_32px]" />
       <div className="relative">
-        {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          {/* Current Date/Time Display */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Welcome to Our Center
+              {format(currentTime, 'EEEE, MMMM d')}
             </h2>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Experience professional physiotherapy and massage services
+              Current Time: {format(currentTime, 'HH:mm')}
             </p>
           </div>
 
@@ -29,29 +51,36 @@ export default function OverviewPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatsCard
               title="Next Available"
-              value="Today, 2:00 PM"
+              value={nextSlot ? `${nextSlot.date}, ${nextSlot.time}` : 'No slots available'}
               icon={Calendar}
               description="Book your session now"
-              trend={{ value: 100, isPositive: true }}
+              trend={nextSlot ? { value: 100, isPositive: true } : undefined}
             />
             <StatsCard
-              title="Active Therapists"
-              value="8"
+              title="Today's Bookings"
+              value={`${bookings.filter(b => 
+                new Date(b.date).toDateString() === currentTime.toDateString()
+              ).length} sessions`}
               icon={Activity}
-              description="Experienced professionals"
+              description="Appointments today"
             />
             <StatsCard
               title="Opening Hours"
-              value="9AM - 6PM"
+              value={format(currentTime, 'EEEE') === 'Saturday' || format(currentTime, 'EEEE') === 'Sunday' 
+                ? 'Closed Today'
+                : '9AM - 6PM'}
               icon={Clock}
-              description="Monday to Friday"
+              description={format(currentTime, 'EEEE')}
             />
             <StatsCard
-              title="Happy Clients"
-              value="500+"
+              title="Weekly Slots"
+              value={`${14 - bookings.length} available`}
               icon={Users}
-              description="Satisfied customers"
-              trend={{ value: 25, isPositive: true }}
+              description="This week's capacity"
+              trend={{ 
+                value: Math.round((14 - bookings.length) / 14 * 100), 
+                isPositive: true 
+              }}
             />
           </div>
 

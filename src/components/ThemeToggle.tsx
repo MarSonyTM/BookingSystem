@@ -1,9 +1,8 @@
 import React from 'react';
-import { Moon, Sun } from 'lucide-react';
-import { Theme } from '../utils/theme';
+import { Sun, Moon } from 'lucide-react';
 
 interface ThemeToggleProps {
-  theme: Theme;
+  theme: string;
   onToggle: () => void;
 }
 

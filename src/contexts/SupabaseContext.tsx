@@ -115,12 +115,12 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      setError(null);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      return { error: null };
     } catch (error) {
       console.error('Sign out error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to sign out');
+      return { error: error as Error };
     }
   };
 

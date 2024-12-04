@@ -1,73 +1,45 @@
 import { Handler } from '@netlify/functions';
 import sgMail from '@sendgrid/mail';
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.VITE_EMAIL_FROM;
+const handler: Handler = async (event) => {
+  // Log environment variables (remove in production)
+  console.log('Environment check:', {
+    hasApiKey: !!process.env.SENDGRID_API_KEY,
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: process.env.SMTP_PORT,
+    emailFrom: process.env.EMAIL_FROM
+  });
 
-export const handler: Handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
+  if (!process.env.SENDGRID_API_KEY) {
     return {
-      statusCode: 405,
-      body: 'Method Not Allowed',
+      statusCode: 500,
+      body: JSON.stringify({ error: 'SendGrid API key not configured' })
     };
   }
 
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
   try {
-    const { email, name, message } = JSON.parse(event.body || '{}');
-
-    if (!email || !name || !message) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ 
-          error: 'Missing required fields',
-          received: { email, name, message }
-        }),
-      };
-    }
-
-    if (!SENDGRID_API_KEY) {
-      throw new Error('SENDGRID_API_KEY is not configured');
-    }
-
-    if (!FROM_EMAIL) {
-      throw new Error('FROM_EMAIL is not configured');
-    }
-
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    
-    const msg = {
-      to: FROM_EMAIL,
-      from: FROM_EMAIL,
-      subject: `New Contact Form Submission from ${name}`,
-      text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
-      html: `
-        <div>
-          <h2>New Contact Form Submission</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Message:</strong></p>
-          <p>${message}</p>
-        </div>
-      `,
-    };
-
-    console.log('Sending email with payload:', msg);
-    
-    await sgMail.send(msg);
+    // Test email
+    await sgMail.send({
+      to: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM,
+      subject: 'Test Email',
+      text: 'This is a test email to verify SendGrid configuration',
+      html: '<p>This is a test email to verify SendGrid configuration</p>'
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Form submitted successfully' }),
+      body: JSON.stringify({ message: 'Test email sent successfully' })
     };
   } catch (error) {
-    console.error('Error sending email:', error);
-    
+    console.error('SendGrid error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        message: 'Failed to send email',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }),
+      body: JSON.stringify({ error: error.message })
     };
   }
 };
+
+export { handler };

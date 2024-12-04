@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Calendar, Clock, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import StatsCard from '../components/overview/StatsCard';
 import QuickActions from '../components/overview/QuickActions';
 import HealthTips from '../components/overview/HealthTips';
@@ -10,6 +11,7 @@ import { getNextAvailableSlot } from '../utils/timeUtils';
 
 export default function OverviewPage() {
   const { bookings } = useBookings();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [nextSlot, setNextSlot] = useState<{
     date: string;

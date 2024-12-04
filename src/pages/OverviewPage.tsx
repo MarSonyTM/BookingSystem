@@ -16,12 +16,16 @@ export default function OverviewPage() {
     date: string;
     time: string;
     full: string;
+    trend: number;
   } | null>(null);
 
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
+      // Also update next available slot when time changes
+      const slot = getNextAvailableSlot(bookings);
+      setNextSlot(slot);
     }, 60000);
 
     return () => clearInterval(timer);
@@ -102,7 +106,7 @@ export default function OverviewPage() {
           value={nextSlot ? `${nextSlot.date}, ${nextSlot.time}` : 'No slots available'}
           icon={Calendar}
           description="Book your session now"
-          trend={nextSlot ? { value: 100, isPositive: true } : undefined}
+          trend={nextSlot ? { value: nextSlot.trend, isPositive: true } : undefined}
         />
         <StatsCard
           title="Today's Bookings"

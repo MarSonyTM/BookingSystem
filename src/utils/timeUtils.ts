@@ -1,9 +1,10 @@
-import { format, addDays, isAfter, startOfDay, endOfDay } from 'date-fns';
+import { format, addDays, isAfter, startOfDay, endOfDay, addMinutes } from 'date-fns';
 import { Booking } from '../types/booking';
+import { generateTimeSlots } from './dateUtils';
 
 export function getNextAvailableSlot(bookings: Booking[]) {
   const now = new Date();
-  const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  const timeSlots = generateTimeSlots(); // Use the same time slots as booking system
   
   // Look ahead for the next 5 days
   for (let i = 0; i < 5; i++) {
@@ -23,24 +24,43 @@ export function getNextAvailableSlot(bookings: Booking[]) {
       const slotDate = new Date(currentDate);
       slotDate.setHours(hours, minutes, 0, 0);
 
-      // Skip if slot is in the past
-      if (!isAfter(slotDate, now)) continue;
+      // Add 30-minute buffer for slots
+      const slotWithBuffer = addMinutes(slotDate, -30);
+
+      // Skip if slot is in the past (including buffer)
+      if (!isAfter(slotDate, now) || !isAfter(slotWithBuffer, now)) continue;
 
       // Check if slot is available
       const isBooked = dayBookings.some(booking => {
-        const bookingTime = new Date(booking.date).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
+        const bookingTime = format(new Date(booking.date), 'HH:mm');
         return bookingTime === slot;
       });
 
       if (!isBooked) {
+        // Calculate availability percentage based on remaining slots for the day
+        const totalSlotsForDay = timeSlots.length;
+        const availableSlots = timeSlots.filter(timeSlot => {
+          const [h, m] = timeSlot.split(':').map(Number);
+          const timeSlotDate = new Date(currentDate);
+          timeSlotDate.setHours(h, m, 0, 0);
+          const timeSlotWithBuffer = addMinutes(timeSlotDate, -30);
+
+          // Check if slot is bookable (not in past and not booked)
+          const isPast = !isAfter(timeSlotDate, now) || !isAfter(timeSlotWithBuffer, now);
+          const isSlotBooked = dayBookings.some(booking => 
+            format(new Date(booking.date), 'HH:mm') === timeSlot
+          );
+
+          return !isPast && !isSlotBooked;
+        }).length;
+
+        const availabilityPercentage = Math.round((availableSlots / totalSlotsForDay) * 100);
+
         return {
           date: format(slotDate, 'EEE, MMM d'),
           time: format(slotDate, 'HH:mm'),
-          full: format(slotDate, 'EEE, MMM d HH:mm')
+          full: format(slotDate, 'EEE, MMM d HH:mm'),
+          trend: availabilityPercentage
         };
       }
     }

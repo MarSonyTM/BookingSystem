@@ -20,8 +20,12 @@ export default function DayColumn({
   onCancel,
 }: DayColumnProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Count slots that are either booked or in the past
+  const unavailableSlots = timeSlots.filter(slot => slot.isBooked || slot.isPast).length;
+  const availableSlots = timeSlots.length - unavailableSlots;
   const bookedSlots = timeSlots.filter(slot => slot.isBooked).length;
-  const availableSlots = timeSlots.length - bookedSlots;
+  const pastSlots = timeSlots.filter(slot => slot.isPast).length;
 
   return (
     <div className="flex-1 min-w-[280px] md:min-w-[320px] backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 rounded-2xl shadow-xl overflow-hidden transition-all transform hover:scale-[1.01] border border-gray-200/50 dark:border-gray-700/50">
@@ -44,8 +48,15 @@ export default function DayColumn({
               <div className="text-sm font-medium text-gray-900 dark:text-white">
                 {availableSlots} available
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {bookedSlots} booked
+              <div className="text-xs space-y-0.5">
+                <div className="text-gray-500 dark:text-gray-400">
+                  {bookedSlots} booked
+                </div>
+                {pastSlots > 0 && (
+                  <div className="text-gray-400 dark:text-gray-500">
+                    {pastSlots} past
+                  </div>
+                )}
               </div>
             </div>
             <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>

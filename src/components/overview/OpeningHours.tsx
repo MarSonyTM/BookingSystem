@@ -11,9 +11,12 @@ export default function OpeningHours() {
       <div className="space-y-2">
         <div className="flex justify-between text-gray-600 dark:text-gray-400">
           <span>Monday - Friday</span>
-          <span>9:00 - 18:00</span>
+          <span>10:00 - 17:30</span>
         </div>
-        {/* Add more opening hours */}
+        <div className="flex justify-between text-gray-600 dark:text-gray-400">
+          <span>Saturday - Sunday</span>
+          <span>Closed</span>
+        </div>
       </div>
     </div>
   );

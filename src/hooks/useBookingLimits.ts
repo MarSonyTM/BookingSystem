@@ -1,5 +1,6 @@
 import { useSupabase } from '../contexts/SupabaseContext';
 import { Booking } from '../types/booking';
+import { startOfWeek as getStartOfWeek, endOfWeek as getEndOfWeek } from 'date-fns';
 
 export function useBookingLimits() {
   const { user } = useSupabase();
@@ -21,19 +22,14 @@ export function useBookingLimits() {
         isSameDay(new Date(booking.date), selectedDate)
     );
     
-    return userBookingsForDay.length === 0;
+    return userBookingsForDay.length < 1;
   };
 
   const checkWeeklyLimit = (bookings: Booking[], selectedDate: Date): boolean => {
     if (!user) return false;
 
-    const startOfWeek = new Date(selectedDate);
-    startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const startOfWeek = getStartOfWeek(selectedDate, { weekStartsOn: 1 });
+    const endOfWeek = getEndOfWeek(selectedDate, { weekStartsOn: 1 });
 
     const userBookingsForWeek = getUserWeeklyBookings(bookings, selectedDate);
 
@@ -43,24 +39,22 @@ export function useBookingLimits() {
   const getUserWeeklyBookings = (bookings: Booking[], selectedDate: Date): Booking[] => {
     if (!user) return [];
 
-    const startOfWeek = new Date(selectedDate);
-    startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const startOfWeek = getStartOfWeek(selectedDate, { weekStartsOn: 1 });
+    const endOfWeek = getEndOfWeek(selectedDate, { weekStartsOn: 1 });
 
     return bookings.filter(booking => {
-      if (booking.userId !== user.id) return false;
       const bookingDate = new Date(booking.date);
-      return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
+      return (
+        booking.userId === user.id &&
+        bookingDate >= startOfWeek &&
+        bookingDate <= endOfWeek
+      );
     });
   };
 
   return {
     checkDailyLimit,
     checkWeeklyLimit,
-    getUserWeeklyBookings,
+    getUserWeeklyBookings
   };
 }

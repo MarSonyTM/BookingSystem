@@ -7,6 +7,7 @@ import { Booking } from '../types/booking';
 import { useSupabase } from '../contexts/SupabaseContext';
 import { useBookingLimits } from '../hooks/useBookingLimits';
 import { useBookings } from '../hooks/useBookings';
+import { isBefore, isSameDay, addMinutes, startOfToday } from 'date-fns';
 
 export default function BookingSystem() {
   const [selectedSlot, setSelectedSlot] = useState<{
@@ -33,10 +34,23 @@ export default function BookingSystem() {
   };
 
   const getTimeSlotsForDay = (date: Date) => {
+    const now = new Date();
+    const today = startOfToday();
+    const isToday = isSameDay(date, today);
+    const isPastDay = isBefore(date, today);
+
     return timeSlots.map((time) => {
       const [hours, minutes] = time.split(':');
       const slotDate = new Date(date);
       slotDate.setHours(parseInt(hours), parseInt(minutes));
+
+      // Add 30 minutes buffer for booking
+      const slotWithBuffer = addMinutes(slotDate, -30);
+      
+      // Mark as past if:
+      // 1. It's a past day, or
+      // 2. It's today and the slot (with buffer) is in the past
+      const isPastSlot = isPastDay || (isToday && isBefore(slotWithBuffer, now));
 
       const booking = bookings.find(
         (b) => {
@@ -52,6 +66,7 @@ export default function BookingSystem() {
         isBooked: !!booking,
         booking,
         serviceType: 'physio',
+        isPast: isPastSlot
       };
     });
   };
@@ -61,6 +76,21 @@ export default function BookingSystem() {
 
     try {
       setError(null);
+
+      const [hours, minutes] = selectedSlot.time.split(':');
+      const bookingDate = new Date(selectedSlot.date);
+      bookingDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // Add 30 minutes buffer for booking
+      const now = new Date();
+      const bookingWithBuffer = addMinutes(bookingDate, -30);
+      
+      // Check if trying to book a past slot
+      if (isBefore(bookingWithBuffer, now)) {
+        setError('Cannot book appointments less than 30 minutes in advance');
+        setSelectedSlot(null);
+        return;
+      }
 
       // Check daily limit
       if (!checkDailyLimit(bookings, selectedSlot.date)) {
@@ -75,13 +105,9 @@ export default function BookingSystem() {
         setSelectedSlot(null);
         return;
       }
-
-      const [hours, minutes] = selectedSlot.time.split(':');
-      const bookingDate = new Date(selectedSlot.date);
-      bookingDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       await createBooking(bookingDate.toISOString(), 'physio');
-      await refetch(); // Refresh bookings after creating
+      await refetch();
       setSelectedSlot(null);
     } catch (err) {
       console.error('Booking error:', err);

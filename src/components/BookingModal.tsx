@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Calendar, Clock, AlertTriangle } from 'lucide-react';
 import { formatTime } from '../utils/dateUtils';
 import { Booking } from '../types/booking';
+import { format } from 'date-fns';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export default function BookingModal({
           <div className="flex items-center space-x-4 mt-4">
             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-300">
               <Calendar size={18} />
-              <span>{selectedDate.toLocaleDateString()}</span>
+              <span>{format(selectedDate, 'EEEE, MMMM d')}</span>
             </div>
             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-300">
               <Clock size={18} />
@@ -82,16 +83,10 @@ export default function BookingModal({
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                          {booking.date.toLocaleDateString()}
+                          {format(new Date(booking.date), 'EEEE, MMMM d')}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {formatTime(
-                            booking.date.toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: false,
-                            })
-                          )}
+                          {formatTime(format(new Date(booking.date), 'HH:mm'))}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
@@ -110,13 +105,7 @@ export default function BookingModal({
                 <p className="mt-1">
                   Would you like to cancel your existing booking at{' '}
                   <span className="font-medium">
-                    {formatTime(
-                      existingBooking.date.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                      })
-                    )}
+                    {formatTime(format(new Date(existingBooking.date), 'HH:mm'))}
                   </span>{' '}
                   and book this new time instead?
                 </p>

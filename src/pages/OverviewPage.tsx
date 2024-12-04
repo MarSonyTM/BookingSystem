@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Calendar, Clock, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval, isBefore, isSameDay, addMinutes } from 'date-fns';
 import StatsCard from '../components/overview/StatsCard';
 import QuickActions from '../components/overview/QuickActions';
 import HealthTips from '../components/overview/HealthTips';
 import OpeningHours from '../components/overview/OpeningHours';
 import { useBookings } from '../hooks/useBookings';
 import { getNextAvailableSlot } from '../utils/timeUtils';
+import { generateTimeSlots } from '../utils/dateUtils';
 
 export default function OverviewPage() {
   const { bookings } = useBookings();
@@ -32,6 +33,56 @@ export default function OverviewPage() {
     setNextSlot(slot);
   }, [bookings, currentTime]);
 
+  // Calculate weekly bookings
+  const weekStart = startOfWeek(currentTime, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(currentTime, { weekStartsOn: 1 });
+  
+  const weeklyBookings = bookings.filter(booking => {
+    const bookingDate = new Date(booking.date);
+    return isWithinInterval(bookingDate, { start: weekStart, end: weekEnd });
+  });
+
+  // Calculate today's bookings
+  const todayBookings = bookings.filter(b => 
+    new Date(b.date).toDateString() === currentTime.toDateString()
+  );
+
+  // Calculate available slots for the remaining week
+  const calculateAvailableSlots = () => {
+    const now = new Date();
+    const timeSlots = generateTimeSlots();
+    const slotsPerDay = timeSlots.length; // 15 slots per day (10:00 to 17:30, every 30 min)
+    let totalAvailableSlots = 0;
+
+    // For today, only count future slots (with 30 min buffer)
+    if (isSameDay(now, currentTime)) {
+      const todaySlots = timeSlots.filter(time => {
+        const [hours, minutes] = time.split(':');
+        const slotTime = new Date(now);
+        slotTime.setHours(parseInt(hours), parseInt(minutes));
+        return !isBefore(addMinutes(slotTime, -30), now);
+      });
+      totalAvailableSlots += todaySlots.length;
+    }
+
+    // Calculate remaining weekdays after today
+    const today = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const remainingWeekdays = today <= 5 ? 5 - today : 0;
+
+    // Add slots for remaining weekdays
+    totalAvailableSlots += remainingWeekdays * slotsPerDay;
+
+    // Subtract booked slots
+    const futureBookings = weeklyBookings.filter(booking => 
+      !isBefore(new Date(booking.date), addMinutes(now, -30))
+    );
+
+    return totalAvailableSlots - futureBookings.length;
+  };
+
+  const availableSlots = calculateAvailableSlots();
+  const totalSlotsThisWeek = 15 * 5; // Used only for percentage calculation
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       {/* Current Date/Time Display */}
@@ -55,9 +106,7 @@ export default function OverviewPage() {
         />
         <StatsCard
           title="Today's Bookings"
-          value={`${bookings.filter(b => 
-            new Date(b.date).toDateString() === currentTime.toDateString()
-          ).length} sessions`}
+          value={`${todayBookings.length} sessions`}
           icon={Activity}
           description="Appointments today"
         />
@@ -65,17 +114,17 @@ export default function OverviewPage() {
           title="Opening Hours"
           value={format(currentTime, 'EEEE') === 'Saturday' || format(currentTime, 'EEEE') === 'Sunday' 
             ? 'Closed Today'
-            : '9AM - 6PM'}
+            : '10AM - 5:30PM'}
           icon={Clock}
           description={format(currentTime, 'EEEE')}
         />
         <StatsCard
           title="Weekly Slots"
-          value={`${14 - bookings.length} available`}
+          value={`${availableSlots} available`}
           icon={Users}
           description="This week's capacity"
           trend={{ 
-            value: Math.round((14 - bookings.length) / 14 * 100), 
+            value: Math.round((availableSlots / totalSlotsThisWeek) * 100), 
             isPositive: true 
           }}
         />

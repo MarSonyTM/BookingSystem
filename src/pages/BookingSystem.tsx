@@ -3,8 +3,6 @@ import { Activity } from 'lucide-react';
 import { generateTimeSlots, generateWeekDays } from '../utils/dateUtils';
 import DayColumn from '../components/DayColumn';
 import BookingModal from '../components/BookingModal';
-import { Booking } from '../types/booking';
-import { useSupabase } from '../contexts/SupabaseContext';
 import { useBookingLimits } from '../hooks/useBookingLimits';
 import { useBookings } from '../hooks/useBookings';
 import { isBefore, isSameDay, addMinutes, startOfToday } from 'date-fns';
@@ -16,19 +14,15 @@ export default function BookingSystem() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const { user } = useSupabase();
   const { bookings, loading, createBooking, cancelBooking, refetch } = useBookings();
   const { checkDailyLimit, checkWeeklyLimit, getUserWeeklyBookings } = useBookingLimits();
 
   const timeSlots = generateTimeSlots();
   const weekDays = generateWeekDays();
 
-  const getExistingBooking = (date: Date): Booking | null => {
-    if (!user) return null;
-    
+  const getExistingBooking = (date: Date) => {
     return bookings.find(
       booking => 
-        booking.userId === user.id &&
         new Date(booking.date).toDateString() === date.toDateString()
     ) || null;
   };
@@ -44,12 +38,7 @@ export default function BookingSystem() {
       const slotDate = new Date(date);
       slotDate.setHours(parseInt(hours), parseInt(minutes));
 
-      // Add 30 minutes buffer for booking
       const slotWithBuffer = addMinutes(slotDate, -30);
-      
-      // Mark as past if:
-      // 1. It's a past day, or
-      // 2. It's today and the slot (with buffer) is in the past
       const isPastSlot = isPastDay || (isToday && isBefore(slotWithBuffer, now));
 
       const booking = bookings.find(
@@ -72,7 +61,7 @@ export default function BookingSystem() {
   };
 
   const handleBook = async () => {
-    if (!selectedSlot || !user) return;
+    if (!selectedSlot) return;
 
     try {
       setError(null);
@@ -81,25 +70,21 @@ export default function BookingSystem() {
       const bookingDate = new Date(selectedSlot.date);
       bookingDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      // Add 30 minutes buffer for booking
       const now = new Date();
       const bookingWithBuffer = addMinutes(bookingDate, -30);
       
-      // Check if trying to book a past slot
       if (isBefore(bookingWithBuffer, now)) {
         setError('Cannot book appointments less than 30 minutes in advance');
         setSelectedSlot(null);
         return;
       }
 
-      // Check daily limit
       if (!checkDailyLimit(bookings, selectedSlot.date)) {
         setError('You can only book one slot per day');
         setSelectedSlot(null);
         return;
       }
 
-      // Check weekly limit
       if (!checkWeeklyLimit(bookings, selectedSlot.date)) {
         setError('You can only book two slots per week');
         setSelectedSlot(null);
@@ -115,36 +100,20 @@ export default function BookingSystem() {
     }
   };
 
-  const handleCancelAndBook = async (bookingToCancel: Booking) => {
-    if (!selectedSlot || !user) return;
+  const handleCancelAndBook = async (bookingToCancel: any) => {
+    if (!selectedSlot) return;
 
     try {
       setError(null);
-
-      // Check daily limit for the new booking date
-      const existingBookingsForNewDay = bookings.filter(
-        booking => 
-          booking.userId === user.id &&
-          new Date(booking.date).toDateString() === selectedSlot.date.toDateString() &&
-          booking.id !== bookingToCancel.id
-      );
-
-      if (existingBookingsForNewDay.length > 0) {
-        setError('You can only book one slot per day');
-        setSelectedSlot(null);
-        return;
-      }
       
-      // Cancel existing booking
       await cancelBooking(bookingToCancel.id);
       
-      // Create new booking
       const [hours, minutes] = selectedSlot.time.split(':');
       const bookingDate = new Date(selectedSlot.date);
       bookingDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       await createBooking(bookingDate.toISOString(), 'physio');
-      await refetch(); // Refresh bookings after updating
+      await refetch();
       setSelectedSlot(null);
     } catch (err) {
       console.error('Booking update error:', err);
@@ -170,7 +139,7 @@ export default function BookingSystem() {
 
       if (booking) {
         await cancelBooking(booking.id);
-        await refetch(); // Refresh bookings after cancelling
+        await refetch();
       }
     } catch (err) {
       console.error('Cancel error:', err);

@@ -1,14 +1,26 @@
-import { format, addDays, isAfter, startOfDay, endOfDay, addMinutes } from 'date-fns';
+import { format, addDays, isAfter, startOfDay, endOfDay, addMinutes, isWeekend, isFriday, startOfWeek } from 'date-fns';
 import { Booking } from '../types/booking';
 import { generateTimeSlots } from './dateUtils';
 
 export function getNextAvailableSlot(bookings: Booking[]) {
   const now = new Date();
-  const timeSlots = generateTimeSlots(); // Use the same time slots as booking system
+  const timeSlots = generateTimeSlots();
   
-  // Look ahead for the next 5 days
+  // Get the current week's Monday
+  let monday = startOfWeek(now, { weekStartsOn: 1 });
+  
+  // If it's weekend or Friday after 10 AM, look at next week
+  if (isWeekend(now) || (isFriday(now) && isAfter(now, getTenAM(now)))) {
+    monday = addDays(monday, 7);
+  }
+  
+  // Look ahead for the next 5 weekdays
   for (let i = 0; i < 5; i++) {
-    const currentDate = addDays(now, i);
+    const currentDate = addDays(monday, i);
+    
+    // Skip weekends
+    if (isWeekend(currentDate)) continue;
+    
     const dayStart = startOfDay(currentDate);
     const dayEnd = endOfDay(currentDate);
 
@@ -58,8 +70,8 @@ export function getNextAvailableSlot(bookings: Booking[]) {
 
         return {
           date: format(slotDate, 'EEE, MMM d'),
-          time: format(slotDate, 'HH:mm'),
-          full: format(slotDate, 'EEE, MMM d HH:mm'),
+          time: format(slotDate, 'h:mm a'),
+          full: format(slotDate, 'EEE, MMM d h:mm a'),
           trend: availabilityPercentage
         };
       }
@@ -67,4 +79,11 @@ export function getNextAvailableSlot(bookings: Booking[]) {
   }
 
   return null;
-} 
+}
+
+// Helper function to get 10 AM of a given date
+const getTenAM = (date: Date): Date => {
+  const tenAM = new Date(date);
+  tenAM.setHours(10, 0, 0, 0);
+  return tenAM;
+};

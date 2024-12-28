@@ -19,11 +19,9 @@ export default function OverviewPage() {
     trend: number;
   } | null>(null);
 
-  // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-      // Also update next available slot when time changes
       const slot = getNextAvailableSlot(bookings);
       setNextSlot(slot);
     }, 60000);
@@ -31,13 +29,11 @@ export default function OverviewPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Update next available slot when bookings change
   useEffect(() => {
     const slot = getNextAvailableSlot(bookings);
     setNextSlot(slot);
   }, [bookings, currentTime]);
 
-  // Calculate weekly bookings
   const weekStart = startOfWeek(currentTime, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentTime, { weekStartsOn: 1 });
   
@@ -46,19 +42,26 @@ export default function OverviewPage() {
     return isWithinInterval(bookingDate, { start: weekStart, end: weekEnd });
   });
 
-  // Calculate today's bookings
+  // Get today's bookings with times
   const todayBookings = bookings.filter(b => 
     new Date(b.date).toDateString() === currentTime.toDateString()
   );
 
-  // Calculate available slots for the remaining week
+  // Format today's bookings times
+  const todayBookingTimes = todayBookings
+    .map(booking => format(new Date(booking.date), 'h:mm a'))
+    .join(', ');
+
+  const todaySessionsDisplay = todayBookings.length > 0
+    ? `${todayBookings.length} (${todayBookingTimes})`
+    : 'No sessions today';
+
   const calculateAvailableSlots = () => {
     const now = new Date();
     const timeSlots = generateTimeSlots();
-    const slotsPerDay = timeSlots.length; // 15 slots per day (10:00 to 17:30, every 30 min)
+    const slotsPerDay = timeSlots.length;
     let totalAvailableSlots = 0;
 
-    // For today, only count future slots (with 30 min buffer)
     if (isSameDay(now, currentTime)) {
       const todaySlots = timeSlots.filter(time => {
         const [hours, minutes] = time.split(':');
@@ -69,14 +72,10 @@ export default function OverviewPage() {
       totalAvailableSlots += todaySlots.length;
     }
 
-    // Calculate remaining weekdays after today
-    const today = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const today = now.getDay();
     const remainingWeekdays = today <= 5 ? 5 - today : 0;
-
-    // Add slots for remaining weekdays
     totalAvailableSlots += remainingWeekdays * slotsPerDay;
 
-    // Subtract booked slots
     const futureBookings = weeklyBookings.filter(booking => 
       !isBefore(new Date(booking.date), addMinutes(now, -30))
     );
@@ -85,21 +84,19 @@ export default function OverviewPage() {
   };
 
   const availableSlots = calculateAvailableSlots();
-  const totalSlotsThisWeek = 15 * 5; // Used only for percentage calculation
+  const totalSlotsThisWeek = 15 * 5;
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      {/* Current Date/Time Display */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
           {format(currentTime, 'EEEE, MMMM d')}
         </h2>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Current Time: {format(currentTime, 'HH:mm')}
+          Current Time: {format(currentTime, 'h:mm a')}
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
           title="Next Available"
@@ -109,16 +106,16 @@ export default function OverviewPage() {
           trend={nextSlot ? { value: nextSlot.trend, isPositive: true } : undefined}
         />
         <StatsCard
-          title="Today's Bookings"
-          value={`${todayBookings.length} sessions`}
+          title="Today's Sessions"
+          value={todaySessionsDisplay}
           icon={Activity}
-          description="Appointments today"
+          description="Scheduled appointments"
         />
         <StatsCard
           title="Opening Hours"
           value={format(currentTime, 'EEEE') === 'Saturday' || format(currentTime, 'EEEE') === 'Sunday' 
             ? 'Closed Today'
-            : '10AM - 5:30PM'}
+            : '10:00 AM - 5:30 PM'}
           icon={Clock}
           description={format(currentTime, 'EEEE')}
         />
@@ -134,7 +131,6 @@ export default function OverviewPage() {
         />
       </div>
 
-      {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Quick Actions
@@ -142,11 +138,10 @@ export default function OverviewPage() {
         <QuickActions />
       </div>
 
-      {/* Additional Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <HealthTips />
         <OpeningHours />
       </div>
     </main>
   );
-} 
+}

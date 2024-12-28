@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useSupabase } from '../contexts/SupabaseContext';
 import { Booking } from '../types/booking';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 export function useBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -10,20 +10,18 @@ export function useBookings() {
   const { user } = useSupabase();
 
   const fetchBookings = async () => {
-    if (!user) return;
-    
     try {
-      const { data, error } = await supabase
+      if (!user) return;
+
+      const { data, error: fetchError } = await supabase
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'pending')
         .order('date', { ascending: true });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       
-      // Convert the bookings to the correct format
-      const formattedBookings: Booking[] = data.map(booking => ({
+      const formattedBookings: Booking[] = (data || []).map(booking => ({
         id: booking.id,
         date: new Date(booking.date),
         userId: booking.user_id,
@@ -40,42 +38,21 @@ export function useBookings() {
   };
 
   useEffect(() => {
-    if (!user) return;
-
-    fetchBookings();
-
-    // Subscribe to changes
-    const subscription = supabase
-      .channel('bookings_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'bookings',
-          filter: `user_id=eq.${user.id}`
-        }, 
-        () => {
-          // Update bookings when changes occur
-          fetchBookings();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    if (user) {
+      fetchBookings();
+    }
   }, [user]);
 
   const createBooking = async (date: string, serviceType: 'physio' | 'massage') => {
-    if (!user) throw new Error('User not authenticated');
-
     try {
-      const { data, error } = await supabase
+      if (!user) throw new Error('User not authenticated');
+
+      const { data, error: insertError } = await supabase
         .from('bookings')
         .insert([
           {
             user_id: user.id,
-            date: date,
+            date,
             service_type: serviceType,
             status: 'pending'
           }
@@ -83,20 +60,17 @@ export function useBookings() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
       
-      // Convert the booking to the correct format
-      const formattedBooking: Booking = {
+      const newBooking: Booking = {
         id: data.id,
         date: new Date(data.date),
         userId: data.user_id,
         serviceType: data.service_type
       };
 
-      // Update local state
-      setBookings(prev => [...prev, formattedBooking]);
-      
-      return formattedBooking;
+      setBookings(prev => [...prev, newBooking]);
+      return newBooking;
     } catch (err) {
       console.error('Error creating booking:', err);
       throw err;
@@ -104,18 +78,13 @@ export function useBookings() {
   };
 
   const cancelBooking = async (bookingId: string) => {
-    if (!user) throw new Error('User not authenticated');
-
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId)
-        .eq('user_id', user.id);
+        .delete()
+        .eq('id', bookingId);
 
-      if (error) throw error;
-
-      // Update local state
+      if (deleteError) throw deleteError;
       setBookings(prev => prev.filter(b => b.id !== bookingId));
     } catch (err) {
       console.error('Error cancelling booking:', err);
